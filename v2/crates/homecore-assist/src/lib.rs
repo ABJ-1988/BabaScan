@@ -21,9 +21,19 @@
 //!
 //! ## P2 scope (this crate)
 //!
+//! - [`runner::HermesCliRunner`] — the runner actually usable today:
+//!   shells out to an already-installed [Hermes
+//!   Agent](https://github.com/NousResearch/hermes-agent) CLI
+//!   (`hermes --query "<utterance>" --quiet`) as the LLM thinking layer.
+//!   Hermes's scripting contract is one process per query (plain-text
+//!   response on stdout), not a persistent stdio server, so `spawn`/
+//!   `shutdown` are no-ops here — there is nothing to keep alive.
 //! - [`runner::SubprocessRufloRunner`] — real `tokio::process::Child`
-//!   subprocess runner for `node ruflo-agent.js`, with the Windows-safe
-//!   explicit-shutdown teardown decided in ADR-133 §Q3 (option 2).
+//!   subprocess runner for the ADR-133 §1.1 `node ruflo-agent.js` model
+//!   (long-lived process, newline-JSON stdio protocol), with the
+//!   Windows-safe explicit-shutdown teardown decided in §Q3 (option 2).
+//!   No such script ships in this repo; use `HermesCliRunner` unless you
+//!   are building a bespoke MCP-over-stdio agent.
 //! - `AssistPipeline::set_runner` — when the P1 regex recognizer finds no
 //!   match, the pipeline now falls through to the configured `RufloRunner`
 //!   for LLM-grade intent disambiguation or a free-form conversational
@@ -48,6 +58,7 @@ pub use handler::{
     IntentHandler,
 };
 pub use runner::{
-    AssistError, NoopRunner, RufloResponse, RufloRunner, RufloRunnerOpts, SubprocessRufloRunner,
+    AssistError, HermesCliRunner, NoopRunner, RufloResponse, RufloRunner, RufloRunnerOpts,
+    SubprocessRufloRunner,
 };
 pub use pipeline::AssistPipeline;

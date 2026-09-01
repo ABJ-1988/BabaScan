@@ -285,6 +285,125 @@ impl RufloRunner for SubprocessRufloRunner {
     }
 }
 
+/// P2 runner backed by the already-installed Hermes Agent CLI
+/// (<https://github.com/NousResearch/hermes-agent>) instead of a bespoke
+/// `ruflo-agent.js`.
+///
+/// Hermes's scripting contract is a fresh process per query, not a
+/// long-lived stdio server: `hermes --query "<utterance>" --quiet` prints
+/// the plain-text final response to stdout (the session id goes to stderr
+/// so stdout stays script-clean) and exits 0, or non-zero on failure. There
+/// is nothing to keep alive between requests, so [`RufloRunner::spawn`] and
+/// [`RufloRunner::shutdown`] are no-ops — configuration is supplied at
+/// construction instead of through [`RufloRunnerOpts`], which describes a
+/// persistent-subprocess lifecycle this runner doesn't have.
+///
+/// Hermes is a general-purpose conversational assistant, not a structured
+/// intent classifier, so `send_request` always returns `intent: None` —
+/// the [`AssistPipeline`](crate::pipeline::AssistPipeline) fallback treats
+/// that as a free-form spoken reply rather than a dispatchable intent.
+#[derive(Clone)]
+pub struct HermesCliRunner {
+    /// The `hermes` binary: a bare name resolved via `$PATH`, or an
+    /// absolute path.
+    binary: String,
+    /// Extra CLI args appended after `--query <utterance> --quiet`, e.g.
+    /// `["--model", "anthropic/claude-opus-4-20250514"]`.
+    extra_args: Vec<String>,
+    env: std::collections::HashMap<String, String>,
+    /// Bounds each one-shot query — Hermes can call out to a slow
+    /// LLM/tool chain.
+    timeout_ms: u64,
+}
+
+impl HermesCliRunner {
+    pub fn new(binary: impl Into<String>, timeout_ms: u64) -> Self {
+        Self {
+            binary: binary.into(),
+            extra_args: Vec::new(),
+            env: Default::default(),
+            timeout_ms,
+        }
+    }
+
+    pub fn with_extra_args(mut self, args: Vec<String>) -> Self {
+        self.extra_args = args;
+        self
+    }
+
+    pub fn with_env(mut self, env: std::collections::HashMap<String, String>) -> Self {
+        self.env = env;
+        self
+    }
+}
+
+#[async_trait]
+impl RufloRunner for HermesCliRunner {
+    async fn spawn(&mut self, _opts: RufloRunnerOpts) -> Result<(), AssistError> {
+        // Hermes's one-shot contract spawns a fresh process per query —
+        // there is no persistent subprocess to start here.
+        Ok(())
+    }
+
+    async fn send_request(
+        &self,
+        payload: serde_json::Value,
+    ) -> Result<RufloResponse, AssistError> {
+        let utterance = payload
+            .get("utterance")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                AssistError::Io("hermes runner: payload missing an \"utterance\" string".into())
+            })?;
+
+        let child = Command::new(&self.binary)
+            .arg("--query")
+            .arg(utterance)
+            .arg("--quiet")
+            .args(&self.extra_args)
+            .envs(&self.env)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|e| AssistError::Io(format!("failed to spawn hermes CLI: {e}")))?;
+
+        let output = tokio::time::timeout(
+            Duration::from_millis(self.timeout_ms),
+            child.wait_with_output(),
+        )
+        .await
+        .map_err(|_| {
+            AssistError::Io(format!(
+                "hermes CLI query timed out after {}ms",
+                self.timeout_ms
+            ))
+        })?
+        .map_err(|e| AssistError::Io(format!("hermes CLI process error: {e}")))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AssistError::Io(format!(
+                "hermes CLI exited with {}: {}",
+                output.status,
+                stderr.trim()
+            )));
+        }
+
+        let speech = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        Ok(RufloResponse {
+            intent: None,
+            speech: if speech.is_empty() { None } else { Some(speech) },
+        })
+    }
+
+    async fn shutdown(&mut self) -> Result<(), AssistError> {
+        // No persistent subprocess to tear down.
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -423,6 +542,62 @@ mod tests {
         assert!(runner.shutdown().await.is_ok());
         runner.spawn(subprocess_opts(5000)).await.unwrap();
         assert!(runner.shutdown().await.is_ok());
+        assert!(runner.shutdown().await.is_ok());
+    }
+
+    fn fake_hermes() -> HermesCliRunner {
+        HermesCliRunner::new(fixture_script("fake_hermes_cli.sh"), 5000)
+    }
+
+    #[tokio::test]
+    async fn hermes_cli_runner_returns_stdout_as_speech() {
+        let runner = fake_hermes();
+        let resp = runner
+            .send_request(serde_json::json!({"utterance": "what's the weather"}))
+            .await
+            .unwrap();
+        assert_eq!(resp.speech.as_deref(), Some("hermes says: what's the weather"));
+        assert!(resp.intent.is_none());
+    }
+
+    #[tokio::test]
+    async fn hermes_cli_runner_missing_utterance_errors() {
+        let runner = fake_hermes();
+        let err = runner
+            .send_request(serde_json::json!({}))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AssistError::Io(_)));
+    }
+
+    #[tokio::test]
+    async fn hermes_cli_runner_nonzero_exit_is_error() {
+        let runner = HermesCliRunner::new(fixture_script("fake_hermes_cli.sh"), 5000)
+            .with_extra_args(vec!["--fail".into()]);
+        let err = runner
+            .send_request(serde_json::json!({"utterance": "x"}))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AssistError::Io(_)));
+    }
+
+    #[tokio::test]
+    async fn hermes_cli_runner_times_out_on_slow_query() {
+        let runner = HermesCliRunner::new(fixture_script("fake_hermes_cli.sh"), 200)
+            .with_extra_args(vec!["--sleep".into(), "3".into()]);
+        let result = runner
+            .send_request(serde_json::json!({"utterance": "slow"}))
+            .await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), AssistError::Io(_)));
+    }
+
+    #[tokio::test]
+    async fn hermes_cli_runner_spawn_and_shutdown_are_noops() {
+        let mut runner = HermesCliRunner::new("hermes", 5000);
+        assert!(runner.spawn(RufloRunnerOpts::default()).await.is_ok());
+        assert!(runner.shutdown().await.is_ok());
+        // Idempotent — nothing persistent was ever started.
         assert!(runner.shutdown().await.is_ok());
     }
 }

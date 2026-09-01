@@ -8,7 +8,7 @@ Voice-activated intent recognition and execution pipeline for HOMECORE with Rufl
 [![Tests](https://img.shields.io/badge/tests-23%20passing-brightgreen.svg)](https://github.com/ruvnet/RuView)
 [![ADR-133](https://img.shields.io/badge/ADR-133-orange.svg)](../../docs/adr/ADR-133-homecore-assist-ruflo.md)
 
-**P1 scaffold + P2 runner**: intent recognition via regex patterns, 5 built-in intent handlers (turn on/off, set brightness, cancel), and a real `tokio::process` subprocess runner (`SubprocessRufloRunner`) that lets `AssistPipeline` delegate utterances the regex recognizer can't match to a Ruflo agent for LLM-grade disambiguation or free-form conversational replies.
+**P1 scaffold + P2 runners**: intent recognition via regex patterns, 5 built-in intent handlers (turn on/off, set brightness, cancel), and real `RufloRunner` implementations that let `AssistPipeline` delegate utterances the regex recognizer can't match to an LLM for disambiguation or a free-form conversational reply. Two runners ship: **`HermesCliRunner`** (the one to actually use — shells out to an already-installed [Hermes Agent](https://github.com/NousResearch/hermes-agent) CLI, one process per query) and `SubprocessRufloRunner` (a long-lived `node ruflo-agent.js`-style subprocess per ADR-133 §1.1, for a bespoke MCP-over-stdio agent).
 
 ## What this crate does
 
