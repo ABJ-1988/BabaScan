@@ -7,13 +7,13 @@
 //! ## Processing flow
 //!
 //! 1. Call `recognizer.recognize(utterance, language)`.
-//! 2. If no intent matched → return `IntentResponse::not_understood()`.
-//! 3. Look up the handler by intent name.
-//! 4. Call `handler.handle(intent, hc)`.
-//! 5. Return the `IntentResponse`.
-//!
-//! The `RufloRunner` is reserved for a P2 LLM disambiguation pass that
-//! fires between steps 1 and 2 when the regex recognizer returns `None`.
+//! 2. If no intent matched and a `RufloRunner` is configured, send the
+//!    utterance to it for LLM-grade disambiguation (P2).
+//! 3. If still no intent → return `IntentResponse::not_understood()`
+//!    (or the runner's free-form speech, if it gave one).
+//! 4. Look up the handler by intent name.
+//! 5. Call `handler.handle(intent, hc)`.
+//! 6. Return the `IntentResponse`.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -22,9 +22,9 @@ use homecore::HomeCore;
 use tracing::debug;
 
 use crate::handler::IntentHandler;
-use crate::intent::IntentResponse;
+use crate::intent::{Intent, IntentResponse};
 use crate::recognizer::IntentRecognizer;
-use crate::runner::AssistError;
+use crate::runner::{AssistError, RufloRunner};
 
 /// Boxed type alias so the pipeline can hold heterogeneous handlers.
 type BoxedHandler = Arc<dyn IntentHandler>;
@@ -36,6 +36,7 @@ type BoxedHandler = Arc<dyn IntentHandler>;
 pub struct AssistPipeline<R: IntentRecognizer> {
     recognizer: R,
     handlers: HashMap<String, BoxedHandler>,
+    runner: Option<Arc<dyn RufloRunner>>,
 }
 
 impl<R: IntentRecognizer> AssistPipeline<R> {
@@ -44,6 +45,7 @@ impl<R: IntentRecognizer> AssistPipeline<R> {
         Self {
             recognizer,
             handlers: HashMap::new(),
+            runner: None,
         }
     }
 
@@ -52,6 +54,16 @@ impl<R: IntentRecognizer> AssistPipeline<R> {
     pub fn register_handler<H: IntentHandler>(&mut self, handler: H) {
         self.handlers
             .insert(handler.intent_name().to_owned(), Arc::new(handler));
+    }
+
+    /// Configure the P2 ruflo runner used for LLM disambiguation when the
+    /// regex recognizer finds no match. Replaces any previously set runner.
+    ///
+    /// The runner's `spawn`/`shutdown` lifecycle is managed by the caller
+    /// (e.g. at server startup / `Ctrl+C`); the pipeline only ever calls
+    /// `send_request` on it.
+    pub fn set_runner<Run: RufloRunner>(&mut self, runner: Run) {
+        self.runner = Some(Arc::new(runner));
     }
 
     /// Process an utterance through the full pipeline.
@@ -70,13 +82,21 @@ impl<R: IntentRecognizer> AssistPipeline<R> {
     ) -> Result<IntentResponse, AssistError> {
         debug!(%utterance, %language, "AssistPipeline: processing utterance");
 
-        let intent = match self.recognizer.recognize(utterance, language).await {
-            Ok(Some(i)) => i,
-            Ok(None) => {
-                debug!("no intent recognised — returning not_understood");
-                return Ok(IntentResponse::not_understood());
-            }
+        let regex_intent = match self.recognizer.recognize(utterance, language).await {
+            Ok(i) => i,
             Err(e) => return Err(AssistError::Recognizer(e)),
+        };
+
+        let intent = match regex_intent {
+            Some(i) => i,
+            None => match self.resolve_via_runner(utterance, language).await? {
+                RunnerFallback::Intent(i) => i,
+                RunnerFallback::Speech(s) => return Ok(IntentResponse::speech_only(s)),
+                RunnerFallback::None => {
+                    debug!("no intent recognised — returning not_understood");
+                    return Ok(IntentResponse::not_understood());
+                }
+            },
         };
 
         let name = intent.name.as_str().to_owned();
@@ -98,6 +118,51 @@ impl<R: IntentRecognizer> AssistPipeline<R> {
     pub fn handler_count(&self) -> usize {
         self.handlers.len()
     }
+
+    /// True if a P2 ruflo runner is configured on this pipeline.
+    pub fn has_runner(&self) -> bool {
+        self.runner.is_some()
+    }
+
+    /// P2 fallback when the regex recognizer finds no match: ask the
+    /// configured `RufloRunner` (if any) to resolve the utterance.
+    ///
+    /// A runner error is logged and treated the same as
+    /// `RunnerFallback::None` — a slow or crashed LLM agent must never
+    /// turn into a hard pipeline error for the caller.
+    async fn resolve_via_runner(
+        &self,
+        utterance: &str,
+        language: &str,
+    ) -> Result<RunnerFallback, AssistError> {
+        let Some(runner) = &self.runner else {
+            return Ok(RunnerFallback::None);
+        };
+
+        debug!("regex recognizer found no match — falling through to ruflo runner");
+        let payload = serde_json::json!({ "utterance": utterance, "language": language });
+        match runner.send_request(payload).await {
+            Ok(resp) => match (resp.intent, resp.speech) {
+                (Some(i), _) => Ok(RunnerFallback::Intent(i)),
+                (None, Some(s)) => Ok(RunnerFallback::Speech(s)),
+                (None, None) => Ok(RunnerFallback::None),
+            },
+            Err(e) => {
+                debug!(error = %e, "ruflo runner request failed — falling back to not_understood");
+                Ok(RunnerFallback::None)
+            }
+        }
+    }
+}
+
+/// Outcome of a P2 `RufloRunner` disambiguation pass.
+enum RunnerFallback {
+    /// The runner resolved a structured intent — dispatch it normally.
+    Intent(Intent),
+    /// The runner answered conversationally with no actionable intent.
+    Speech(String),
+    /// No runner configured, or the runner could not help either.
+    None,
 }
 
 /// Builder that pre-wires the standard set of built-in HA intent handlers.
@@ -258,5 +323,141 @@ mod tests {
         pipeline.register_handler(HassTurnOn);
         let resp = pipeline.process("on light.bed", "en", &hc).await.unwrap();
         assert!(resp.speech.contains("light.bed"));
+    }
+
+    /// In-process fake `RufloRunner` for pipeline fallback tests — no real
+    /// subprocess involved, so it can assert exact pipeline wiring without
+    /// depending on `node` being on `$PATH`. `SubprocessRufloRunner` has its
+    /// own dedicated tests in `runner.rs`.
+    struct MockRunner {
+        response: crate::runner::RufloResponse,
+    }
+
+    #[async_trait::async_trait]
+    impl RufloRunner for MockRunner {
+        async fn spawn(&mut self, _opts: crate::runner::RufloRunnerOpts) -> Result<(), AssistError> {
+            Ok(())
+        }
+
+        async fn send_request(
+            &self,
+            _payload: serde_json::Value,
+        ) -> Result<crate::runner::RufloResponse, AssistError> {
+            Ok(self.response.clone())
+        }
+
+        async fn shutdown(&mut self) -> Result<(), AssistError> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn pipeline_without_runner_has_runner_is_false() {
+        let r = RegexIntentRecognizer::new();
+        let pipeline = AssistPipeline::new(r);
+        assert!(!pipeline.has_runner());
+    }
+
+    #[tokio::test]
+    async fn pipeline_falls_through_to_runner_for_unmatched_utterance() {
+        use homecore::service::FnHandler;
+
+        let r = RegexIntentRecognizer::new(); // no patterns registered at all
+        let mut pipeline = AssistPipeline::new(r);
+        pipeline.register_handler(HassTurnOn);
+        pipeline.set_runner(MockRunner {
+            response: crate::runner::RufloResponse {
+                intent: Some(Intent::with_entity("HassTurnOn", "light.office", "en")),
+                speech: None,
+            },
+        });
+        assert!(pipeline.has_runner());
+
+        let hc = HomeCore::new();
+        hc.services()
+            .register(
+                ServiceName::new("homeassistant", "turn_on"),
+                FnHandler(|_| async { Ok(serde_json::json!({})) }),
+            )
+            .await;
+
+        let resp = pipeline
+            .process("please switch on the office light", "en", &hc)
+            .await
+            .unwrap();
+        assert!(resp.speech.contains("light.office"));
+    }
+
+    #[tokio::test]
+    async fn pipeline_uses_runner_speech_when_no_intent_resolved() {
+        let r = RegexIntentRecognizer::new();
+        let mut pipeline = AssistPipeline::new(r);
+        pipeline.set_runner(MockRunner {
+            response: crate::runner::RufloResponse {
+                intent: None,
+                speech: Some("It's sunny and 21 degrees.".into()),
+            },
+        });
+
+        let hc = HomeCore::new();
+        let resp = pipeline
+            .process("what's the weather like", "en", &hc)
+            .await
+            .unwrap();
+        assert_eq!(resp.speech, "It's sunny and 21 degrees.");
+    }
+
+    #[tokio::test]
+    async fn pipeline_runner_returning_nothing_falls_back_to_not_understood() {
+        let r = RegexIntentRecognizer::new();
+        let mut pipeline = AssistPipeline::new(r);
+        pipeline.set_runner(MockRunner {
+            response: crate::runner::RufloResponse {
+                intent: None,
+                speech: None,
+            },
+        });
+
+        let hc = HomeCore::new();
+        let resp = pipeline
+            .process("asdkjfh nonsense utterance", "en", &hc)
+            .await
+            .unwrap();
+        assert!(resp.speech.contains("not sure"));
+    }
+
+    #[tokio::test]
+    async fn pipeline_regex_match_skips_runner_entirely() {
+        // If the regex recognizer matches, the runner must never be consulted.
+        struct PanicIfCalledRunner;
+
+        #[async_trait::async_trait]
+        impl RufloRunner for PanicIfCalledRunner {
+            async fn spawn(
+                &mut self,
+                _opts: crate::runner::RufloRunnerOpts,
+            ) -> Result<(), AssistError> {
+                Ok(())
+            }
+
+            async fn send_request(
+                &self,
+                _payload: serde_json::Value,
+            ) -> Result<crate::runner::RufloResponse, AssistError> {
+                panic!("runner must not be called when the regex recognizer already matched");
+            }
+
+            async fn shutdown(&mut self) -> Result<(), AssistError> {
+                Ok(())
+            }
+        }
+
+        let (mut pipeline, hc) = build_test_pipeline().await;
+        pipeline.set_runner(PanicIfCalledRunner);
+        let resp = pipeline
+            .process("turn on light.kitchen", "en", &hc)
+            .await
+            .unwrap();
+        assert!(resp.speech.contains("light.kitchen"));
     }
 }

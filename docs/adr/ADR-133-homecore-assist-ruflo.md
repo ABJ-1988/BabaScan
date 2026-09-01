@@ -174,3 +174,23 @@ vs. an in-memory array at compile time), which intersects with ADR-084 (RabitQ) 
 | **P1** (this ADR) | `intent`, `recognizer` (regex), `handler` (5 built-ins), `runner` (trait + noop), `pipeline` (end-to-end wiring), 10–15 tests |
 | **P2** | Real `tokio::process::Child` runner with Windows-safe teardown; `SemanticIntentRecognizer` with ruvector HNSW |
 | **P3** | STT/TTS bridge, satellite protocol, cloud fallback |
+
+### Implementation note
+
+The `AssistPipeline` fallback wiring (regex miss → runner → not-understood) has
+landed in `v2/crates/homecore-assist`, along with two `RufloRunner` impls:
+
+- `HermesCliRunner` — the one to actually use. Shells out to an
+  already-installed [Hermes Agent](https://github.com/NousResearch/hermes-agent)
+  CLI (`hermes --query "<utterance>" --quiet`, one process per query,
+  plain-text stdout response) rather than the `node ruflo-agent.js` process
+  this ADR originally assumed. No persistent subprocess, so `spawn`/`shutdown`
+  are no-ops.
+- `SubprocessRufloRunner` — real `tokio::process::Child` runner (§Q3 option 2
+  teardown) implementing the original §1.1 long-lived `node ruflo-agent.js`
+  model, for anyone who builds a bespoke MCP-over-stdio agent. No such script
+  ships in this repo; it manages whatever `RufloRunnerOpts::script_path`
+  points at.
+
+`SemanticIntentRecognizer` (§Q4) and the STT/TTS/satellite bridge (P3) remain
+unimplemented stubs.
