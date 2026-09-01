@@ -17,9 +17,16 @@
 //!   `shutdown()` before exit.
 //! - Windows job object approach (option 3 per Q3) deferred to P3.
 
+use std::process::Stdio;
+use std::sync::Arc;
+use std::time::Duration;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+use tokio::sync::Mutex;
 
 use crate::intent::Intent;
 
@@ -138,9 +145,153 @@ impl RufloRunner for NoopRunner {
     }
 }
 
+/// Live handle to the spawned `node ruflo-agent.js` subprocess, plus the
+/// piped stdio ends used for the JSON-lines request/response protocol.
+struct ChildState {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+    timeout_ms: u64,
+}
+
+/// P2 real subprocess runner (ADR-133 §Q3, decision: option 2).
+///
+/// Manages a long-lived `node <script_path>` child process. Requests and
+/// responses are newline-delimited JSON on stdin/stdout: one `send_request`
+/// call writes one line to stdin and reads one line back from stdout, so
+/// only one request may be in flight at a time (enforced by holding the
+/// `Mutex` across the round trip).
+///
+/// ## Windows subprocess teardown (ADR-133 §Q3)
+///
+/// `tokio::process::Child` does not send `SIGTERM` on Windows (not a
+/// Windows concept) and is not killed automatically on drop. Per the ADR
+/// decision, teardown is explicit: call [`RufloRunner::shutdown`], which
+/// kills the child and waits for it to exit. `kill_on_drop(true)` is also
+/// set on the spawned `Command` as a defence-in-depth safety net, but it is
+/// not a substitute for calling `shutdown()` — callers (e.g. the server's
+/// `Ctrl+C`/`SIGINT` handler) must call it explicitly before exit.
+#[derive(Default)]
+pub struct SubprocessRufloRunner {
+    inner: Arc<Mutex<Option<ChildState>>>,
+}
+
+impl SubprocessRufloRunner {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// True if a subprocess is currently spawned and tracked.
+    pub async fn is_running(&self) -> bool {
+        self.inner.lock().await.is_some()
+    }
+}
+
+#[async_trait]
+impl RufloRunner for SubprocessRufloRunner {
+    async fn spawn(&mut self, opts: RufloRunnerOpts) -> Result<(), AssistError> {
+        let mut guard = self.inner.lock().await;
+        if guard.is_some() {
+            // Idempotent: already running, treat as a successful reconnect.
+            return Ok(());
+        }
+
+        let mut child = Command::new("node")
+            .arg(&opts.script_path)
+            .envs(&opts.env)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|e| AssistError::Io(format!("failed to spawn ruflo agent: {e}")))?;
+
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| AssistError::Io("ruflo agent subprocess has no stdin".into()))?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| AssistError::Io("ruflo agent subprocess has no stdout".into()))?;
+
+        *guard = Some(ChildState {
+            child,
+            stdin,
+            stdout: BufReader::new(stdout),
+            timeout_ms: opts.timeout_ms,
+        });
+        Ok(())
+    }
+
+    async fn send_request(
+        &self,
+        payload: serde_json::Value,
+    ) -> Result<RufloResponse, AssistError> {
+        let mut guard = self.inner.lock().await;
+        let state = guard.as_mut().ok_or(AssistError::NotStarted)?;
+
+        let mut line = serde_json::to_string(&payload)
+            .map_err(|e| AssistError::ParseError(e.to_string()))?;
+        line.push('\n');
+
+        let timeout_dur = Duration::from_millis(state.timeout_ms);
+        let stdin = &mut state.stdin;
+        let stdout = &mut state.stdout;
+
+        let round_trip = async {
+            stdin
+                .write_all(line.as_bytes())
+                .await
+                .map_err(|e| AssistError::Io(format!("write to ruflo agent failed: {e}")))?;
+            stdin
+                .flush()
+                .await
+                .map_err(|e| AssistError::Io(format!("flush to ruflo agent failed: {e}")))?;
+
+            let mut response_line = String::new();
+            let n = stdout
+                .read_line(&mut response_line)
+                .await
+                .map_err(|e| AssistError::Io(format!("read from ruflo agent failed: {e}")))?;
+            if n == 0 {
+                return Err(AssistError::Io(
+                    "ruflo agent subprocess closed stdout (EOF)".into(),
+                ));
+            }
+            serde_json::from_str::<RufloResponse>(response_line.trim())
+                .map_err(|e| AssistError::ParseError(e.to_string()))
+        };
+
+        match tokio::time::timeout(timeout_dur, round_trip).await {
+            Ok(result) => result,
+            Err(_) => Err(AssistError::Io(format!(
+                "ruflo agent request timed out after {}ms",
+                state.timeout_ms
+            ))),
+        }
+    }
+
+    async fn shutdown(&mut self) -> Result<(), AssistError> {
+        let mut guard = self.inner.lock().await;
+        if let Some(mut state) = guard.take() {
+            // Dropping stdin first signals EOF so a well-behaved agent can
+            // exit cleanly; start_kill()/wait() then force it either way.
+            drop(state.stdin);
+            let _ = state.child.start_kill();
+            let _ = state.child.wait().await;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn fixture_script(name: &str) -> String {
+        format!("{}/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"))
+    }
 
     #[tokio::test]
     async fn noop_runner_spawn_returns_ok() {
@@ -169,6 +320,109 @@ mod tests {
         runner.spawn(RufloRunnerOpts::default()).await.unwrap();
         assert!(runner.shutdown().await.is_ok());
         // Second shutdown — must still not error.
+        assert!(runner.shutdown().await.is_ok());
+    }
+
+    fn subprocess_opts(timeout_ms: u64) -> RufloRunnerOpts {
+        RufloRunnerOpts {
+            script_path: fixture_script("mock_ruflo_agent.js"),
+            env: Default::default(),
+            timeout_ms,
+        }
+    }
+
+    #[tokio::test]
+    async fn subprocess_runner_send_before_spawn_errors() {
+        let runner = SubprocessRufloRunner::new();
+        let err = runner
+            .send_request(serde_json::json!({"utterance": "hello"}))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AssistError::NotStarted));
+    }
+
+    #[tokio::test]
+    async fn subprocess_runner_round_trip_speech() {
+        let mut runner = SubprocessRufloRunner::new();
+        runner.spawn(subprocess_opts(5000)).await.unwrap();
+        assert!(runner.is_running().await);
+
+        let resp = runner
+            .send_request(serde_json::json!({"utterance": "hello there", "language": "en"}))
+            .await
+            .unwrap();
+        assert_eq!(resp.speech.as_deref(), Some("you said: hello there"));
+        assert!(resp.intent.is_none());
+
+        runner.shutdown().await.unwrap();
+        assert!(!runner.is_running().await);
+    }
+
+    #[tokio::test]
+    async fn subprocess_runner_returns_resolved_intent() {
+        let mut runner = SubprocessRufloRunner::new();
+        runner.spawn(subprocess_opts(5000)).await.unwrap();
+
+        let resp = runner
+            .send_request(serde_json::json!({"utterance": "please dim the lights", "language": "en"}))
+            .await
+            .unwrap();
+        let intent = resp.intent.expect("agent should resolve an intent");
+        assert_eq!(intent.name.as_str(), "HassLightSet");
+        assert_eq!(intent.entity_id(), Some("light.office"));
+
+        runner.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn subprocess_runner_multiple_requests_reuse_process() {
+        let mut runner = SubprocessRufloRunner::new();
+        runner.spawn(subprocess_opts(5000)).await.unwrap();
+
+        let first = runner
+            .send_request(serde_json::json!({"utterance": "one"}))
+            .await
+            .unwrap();
+        let second = runner
+            .send_request(serde_json::json!({"utterance": "two"}))
+            .await
+            .unwrap();
+        assert_eq!(first.speech.as_deref(), Some("you said: one"));
+        assert_eq!(second.speech.as_deref(), Some("you said: two"));
+
+        runner.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn subprocess_runner_times_out_on_slow_agent() {
+        let mut runner = SubprocessRufloRunner::new();
+        runner.spawn(subprocess_opts(200)).await.unwrap();
+
+        let result = runner
+            .send_request(serde_json::json!({"utterance": "please sleep now"}))
+            .await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), AssistError::Io(_)));
+
+        runner.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn subprocess_runner_spawn_is_idempotent() {
+        let mut runner = SubprocessRufloRunner::new();
+        runner.spawn(subprocess_opts(5000)).await.unwrap();
+        // Second spawn while already running must not error or replace the child.
+        runner.spawn(subprocess_opts(5000)).await.unwrap();
+        assert!(runner.is_running().await);
+        runner.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn subprocess_runner_shutdown_is_idempotent() {
+        let mut runner = SubprocessRufloRunner::new();
+        assert!(runner.shutdown().await.is_ok());
+        runner.spawn(subprocess_opts(5000)).await.unwrap();
+        assert!(runner.shutdown().await.is_ok());
         assert!(runner.shutdown().await.is_ok());
     }
 }

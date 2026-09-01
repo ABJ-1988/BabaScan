@@ -174,3 +174,12 @@ vs. an in-memory array at compile time), which intersects with ADR-084 (RabitQ) 
 | **P1** (this ADR) | `intent`, `recognizer` (regex), `handler` (5 built-ins), `runner` (trait + noop), `pipeline` (end-to-end wiring), 10–15 tests |
 | **P2** | Real `tokio::process::Child` runner with Windows-safe teardown; `SemanticIntentRecognizer` with ruvector HNSW |
 | **P3** | STT/TTS bridge, satellite protocol, cloud fallback |
+
+### Implementation note
+
+`SubprocessRufloRunner` (real `tokio::process::Child` runner, Q3 option 2 teardown)
+and the `AssistPipeline` fallback wiring (regex miss → runner → not-understood)
+have landed in `v2/crates/homecore-assist`. `SemanticIntentRecognizer` (§Q4) and
+the STT/TTS/satellite bridge (P3) remain unimplemented stubs; no `ruflo-agent.js`
+ships in this repo yet — `SubprocessRufloRunner` manages whatever script
+`RufloRunnerOpts::script_path` points at.

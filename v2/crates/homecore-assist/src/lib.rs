@@ -17,13 +17,22 @@
 //! - Regex-based intent recognition (HA classic intent matching).
 //! - Built-in handlers: `HassTurnOn`, `HassTurnOff`, `HassLightSet`,
 //!   `HassNevermind`, `HassCancelAll`.
-//! - `RufloRunner` trait surface only; `NoopRunner` stub for P1.
+//! - `RufloRunner` trait surface + `NoopRunner` stub.
 //!
-//! ## What's NOT here yet (deferred to P2+)
+//! ## P2 scope (this crate)
 //!
-//! - Real `tokio::process::Child` subprocess runner for `node ruflo-agent.js`
-//!   (Windows-safe teardown per ADR-133 §Q3 lands in P2).
-//! - `SemanticIntentRecognizer` using ruvector HNSW embeddings (P2).
+//! - [`runner::SubprocessRufloRunner`] — real `tokio::process::Child`
+//!   subprocess runner for `node ruflo-agent.js`, with the Windows-safe
+//!   explicit-shutdown teardown decided in ADR-133 §Q3 (option 2).
+//! - `AssistPipeline::set_runner` — when the P1 regex recognizer finds no
+//!   match, the pipeline now falls through to the configured `RufloRunner`
+//!   for LLM-grade intent disambiguation or a free-form conversational
+//!   reply before giving up with "not understood".
+//!
+//! ## What's NOT here yet (deferred to P3+)
+//!
+//! - `SemanticIntentRecognizer` using ruvector HNSW embeddings (P2, still a
+//!   stub pending the exemplar format decision in ADR-133 §Q4).
 //! - STT/TTS bridge and satellite protocol (P3).
 
 pub mod intent;
@@ -38,5 +47,7 @@ pub use handler::{
     HandlerError, HassCancelAll, HassLightSet, HassNevermind, HassTurnOff, HassTurnOn,
     IntentHandler,
 };
-pub use runner::{AssistError, NoopRunner, RufloResponse, RufloRunner, RufloRunnerOpts};
+pub use runner::{
+    AssistError, NoopRunner, RufloResponse, RufloRunner, RufloRunnerOpts, SubprocessRufloRunner,
+};
 pub use pipeline::AssistPipeline;

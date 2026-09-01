@@ -8,7 +8,7 @@ Voice-activated intent recognition and execution pipeline for HOMECORE with Rufl
 [![Tests](https://img.shields.io/badge/tests-23%20passing-brightgreen.svg)](https://github.com/ruvnet/RuView)
 [![ADR-133](https://img.shields.io/badge/ADR-133-orange.svg)](../../docs/adr/ADR-133-homecore-assist-ruflo.md)
 
-**P1 scaffold**: intent recognition via regex patterns, 5 built-in intent handlers (turn on/off, set brightness, cancel), and Ruflo runner trait surface. Real `tokio::process` subprocess integration (P2) allows orchestration with Ruflo agents for complex multi-step actions.
+**P1 scaffold + P2 runner**: intent recognition via regex patterns, 5 built-in intent handlers (turn on/off, set brightness, cancel), and a real `tokio::process` subprocess runner (`SubprocessRufloRunner`) that lets `AssistPipeline` delegate utterances the regex recognizer can't match to a Ruflo agent for LLM-grade disambiguation or free-form conversational replies.
 
 ## What this crate does
 
@@ -19,7 +19,8 @@ Voice-activated intent recognition and execution pipeline for HOMECORE with Rufl
 - **IntentHandler trait** — abstraction for handling recognized intents
 - **5 built-in handlers** — `HassTurnOn`, `HassTurnOff`, `HassLightSet`, `HassNevermind`, `HassCancelAll` (mirrors HA's classic intents)
 - **RufloRunner trait** — abstraction for delegating complex actions to Ruflo agents
-- **NoopRunner** — P1 stub; real `tokio::process` subprocess integration in P2
+- **NoopRunner** — P1 no-op stub (always falls through to the regex recognizer)
+- **SubprocessRufloRunner** — P2; real `tokio::process` subprocess integration, manages a long-lived `node ruflo-agent.js` process over newline-delimited JSON stdin/stdout
 - **AssistPipeline** — wires utterance → recognizer → handler → response
 
 Each component is trait-based so recognizers can be swapped (regex in P1, semantic embeddings in P2) without changing the pipeline.
