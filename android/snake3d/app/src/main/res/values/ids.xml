@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Declared explicitly so activity_main.xml can keep its original "@id/..." references. -->
+<resources>
+    <item name="root" type="id"/>
+    <item name="glView" type="id"/>
+    <item name="hud" type="id"/>
+    <item name="txtScore" type="id"/>
+    <item name="txtCombo" type="id"/>
+    <item name="txtLength" type="id"/>
+    <item name="txtHigh" type="id"/>
+    <item name="btnPause" type="id"/>
+    <item name="titleOverlay" type="id"/>
+    <item name="txtTitle" type="id"/>
+    <item name="txtStart" type="id"/>
+    <item name="btnMode" type="id"/>
+    <item name="btnSound" type="id"/>
+    <item name="btnStyle" type="id"/>
+    <item name="btnHaptic" type="id"/>
+    <item name="gameOverOverlay" type="id"/>
+    <item name="txtNewRecord" type="id"/>
+    <item name="txtFinalScore" type="id"/>
+    <item name="txtFinalStats" type="id"/>
+    <item name="btnAgain" type="id"/>
+    <item name="btnMenu" type="id"/>
+    <item name="pauseOverlay" type="id"/>
+    <item name="btnResume" type="id"/>
+</resources>

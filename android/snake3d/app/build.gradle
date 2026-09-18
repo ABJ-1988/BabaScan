@@ -1,0 +1,63 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Signing config is read from keystore.properties (never committed).
+// See android/snake3d/README.md for how to create it.
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+}
+
+android {
+    namespace 'com.retro.snake3d'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.retro.snake3d"
+        minSdk 24
+        targetSdk 35
+        versionCode 4
+        versionName "1.2"
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreProps.containsKey('storeFile')) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Play rejects debuggable artifacts — the previous 1.2 APK was a debug build.
+            debuggable false
+            // Kept off: the sources are a faithful reconstruction, and shrinking them
+            // without the original ProGuard rules risks stripping reflected GL/audio code.
+            minifyEnabled false
+            shrinkResources false
+            if (keystoreProps.containsKey('storeFile')) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+}

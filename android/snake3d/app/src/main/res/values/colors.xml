@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#ff05070b</color>
+    <color name="panel">#cc04070c</color>
+    <color name="neon">#ff6bff7a</color>
+    <color name="neon_dim">#ff2e7d3a</color>
+    <color name="cyan">#ff57e8ff</color>
+    <color name="magenta">#ffff4fd8</color>
+    <color name="amber">#ffffc24b</color>
+    <color name="ic_launcher_background">#ff05070b</color>
+</resources>

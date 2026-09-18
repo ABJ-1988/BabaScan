@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:id="@id/root" android:background="@color/bg" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <com.retro.snake3d.GameView android:id="@id/glView" android:layout_width="fill_parent" android:layout_height="fill_parent" />
+    <LinearLayout android:orientation="horizontal" android:id="@id/hud" android:paddingTop="18.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:baselineAligned="false" android:paddingStart="20.0dip" android:paddingEnd="20.0dip">
+        <LinearLayout android:orientation="vertical" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0">
+            <TextView android:textSize="10.0sp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/score" android:alpha="0.55" style="@style/RetroText" />
+            <TextView android:textSize="30.0sp" android:textStyle="bold" android:id="@id/txtScore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" style="@style/RetroText" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center_horizontal" android:orientation="vertical" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0">
+            <TextView android:textSize="26.0sp" android:textStyle="bold" android:textColor="@color/amber" android:id="@id/txtCombo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="x1" android:shadowColor="@color/amber" android:alpha="0.0" style="@style/RetroText" />
+            <TextView android:textSize="10.0sp" android:textColor="@color/cyan" android:id="@id/txtLength" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:shadowColor="@color/cyan" android:alpha="0.6" style="@style/RetroText" />
+        </LinearLayout>
+        <LinearLayout android:gravity="end" android:orientation="vertical" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0">
+            <TextView android:textSize="10.0sp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/high" android:alpha="0.55" style="@style/RetroText" />
+            <TextView android:textSize="18.0sp" android:id="@id/txtHigh" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" style="@style/RetroText" />
+            <Button android:textSize="12.0sp" android:id="@id/btnPause" android:background="@drawable/btn_bg" android:paddingTop="6.0dip" android:paddingBottom="6.0dip" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:minWidth="0.0dip" android:minHeight="0.0dip" android:text="II" android:textAllCaps="false" android:paddingStart="14.0dip" android:paddingEnd="14.0dip" style="@style/RetroText" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/titleOverlay" android:padding="32.0dip" android:layout_width="fill_parent" android:layout_height="fill_parent">
+        <TextView android:textSize="64.0sp" android:textStyle="bold" android:id="@id/txtTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/title" android:letterSpacing="0.3" style="@style/RetroText" />
+        <TextView android:textSize="22.0sp" android:textColor="@color/magenta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:text="@string/title_sub" android:shadowColor="@color/magenta" android:letterSpacing="0.6" style="@style/RetroText" />
+        <TextView android:textSize="14.0sp" android:id="@id/txtStart" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="56.0dip" android:text="@string/tap_to_start" style="@style/RetroText" />
+        <TextView android:textSize="9.0sp" android:gravity="center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12.0dip" android:text="@string/hint_controls" android:alpha="0.45" style="@style/RetroText" />
+        <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="44.0dip">
+            <Button android:textSize="11.0sp" android:id="@id/btnMode" android:background="@drawable/btn_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/mode_classic" android:textAllCaps="false" android:paddingStart="18.0dip" android:paddingEnd="18.0dip" style="@style/RetroText" />
+            <Button android:textSize="11.0sp" android:id="@id/btnSound" android:background="@drawable/btn_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/sound_on" android:textAllCaps="false" android:paddingStart="18.0dip" android:paddingEnd="18.0dip" android:layout_marginStart="10.0dip" style="@style/RetroText" />
+        </LinearLayout>
+        <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dip">
+            <Button android:textSize="11.0sp" android:id="@id/btnStyle" android:background="@drawable/btn_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="KLANG: RETRO" android:textAllCaps="false" android:paddingStart="18.0dip" android:paddingEnd="18.0dip" style="@style/RetroText" />
+            <Button android:textSize="11.0sp" android:id="@id/btnHaptic" android:background="@drawable/btn_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="VIBRATION: STARK" android:textAllCaps="false" android:paddingStart="18.0dip" android:paddingEnd="18.0dip" android:layout_marginStart="10.0dip" style="@style/RetroText" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/gameOverOverlay" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="fill_parent">
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:background="@drawable/panel_bg" android:layout_width="wrap_content" android:layout_height="wrap_content">
+            <TextView android:textSize="34.0sp" android:textStyle="bold" android:textColor="@color/magenta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/game_over" android:shadowColor="@color/magenta" style="@style/RetroText" />
+            <TextView android:textSize="13.0sp" android:textColor="@color/amber" android:id="@id/txtNewRecord" android:visibility="invisible" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8.0dip" android:text="@string/new_record" android:shadowColor="@color/amber" style="@style/RetroText" />
+            <TextView android:textSize="46.0sp" android:textStyle="bold" android:id="@id/txtFinalScore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="18.0dip" android:text="0" style="@style/RetroText" />
+            <TextView android:textSize="10.0sp" android:textColor="@color/cyan" android:gravity="center" android:id="@id/txtFinalStats" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6.0dip" android:text="" android:shadowColor="@color/cyan" android:alpha="0.75" style="@style/RetroText" />
+            <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="28.0dip">
+                <Button android:textSize="13.0sp" android:id="@id/btnAgain" android:background="@drawable/btn_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/again" android:textAllCaps="false" android:paddingStart="22.0dip" android:paddingEnd="22.0dip" style="@style/RetroText" />
+                <Button android:textSize="13.0sp" android:id="@id/btnMenu" android:background="@drawable/btn_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/menu" android:alpha="0.7" android:textAllCaps="false" android:paddingStart="22.0dip" android:paddingEnd="22.0dip" android:layout_marginStart="12.0dip" style="@style/RetroText" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/pauseOverlay" android:background="#99000000" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="fill_parent">
+        <TextView android:textSize="40.0sp" android:textStyle="bold" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PAUSE" style="@style/RetroText" />
+        <Button android:textSize="13.0sp" android:id="@id/btnResume" android:background="@drawable/btn_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24.0dip" android:text="@string/resume" android:textAllCaps="false" android:paddingStart="22.0dip" android:paddingEnd="22.0dip" style="@style/RetroText" />
+    </LinearLayout>
+</FrameLayout>

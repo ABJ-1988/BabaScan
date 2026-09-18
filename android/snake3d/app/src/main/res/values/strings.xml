@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Snake 3D</string>
+    <string name="title">SNAKE</string>
+    <string name="title_sub">— 3D —</string>
+    <string name="score">PUNKTE</string>
+    <string name="high">REKORD</string>
+    <string name="length">LÄNGE</string>
+    <string name="tap_to_start">TIPPEN ZUM STARTEN</string>
+    <string name="hint_controls">WISCHEN = RICHTUNG · TIPPEN LINKS/RECHTS = ABBIEGEN</string>
+    <string name="mode_classic">MODUS: WÄNDE</string>
+    <string name="mode_wrap">MODUS: TUNNEL</string>
+    <string name="sound_on">SOUND: AN</string>
+    <string name="sound_off">SOUND: AUS</string>
+    <string name="game_over">GAME OVER</string>
+    <string name="new_record">NEUER REKORD!</string>
+    <string name="again">NOCHMAL</string>
+    <string name="menu">MENÜ</string>
+    <string name="resume">WEITER</string>
+</resources>
