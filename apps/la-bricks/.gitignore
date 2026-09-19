@@ -1,0 +1,6 @@
+# Werkzeuge fuer store/build-assets.mjs (npm i playwright)
+node_modules/
+package-lock.json
+
+# Diagnosebilder aus tests/game.test.mjs
+tests/output/

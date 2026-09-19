@@ -1,0 +1,18 @@
+{
+  "name": "la-bricks",
+  "version": "1.0.0",
+  "description": "LA-Bricks \u2014 Neon-Arcade-Breakout (PWA, Play-Store-Fassung als TWA)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "assets": "node store/build-assets.mjs",
+    "check-listing": "node store/check-listing.mjs",
+    "test": "node tests/projection.test.mjs && node tests/game.test.mjs",
+    "test:projection": "node tests/projection.test.mjs",
+    "test:game": "node tests/game.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
