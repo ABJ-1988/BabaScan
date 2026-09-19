@@ -1,0 +1,118 @@
+/* ==========================================================================
+   LA-BRICKS — THEME TOKENS
+   --------------------------------------------------------------------------
+   Dies ist die EINZIGE Datei, die Farben, Schrift, Glow und Geometrie
+   definiert. Alles andere (game.css, der Canvas-Renderer) liest ausschliesslich
+   diese Custom Properties.
+
+   Der Canvas-Renderer liest die Tokens zur Laufzeit via getComputedStyle
+   (siehe js/theme.js). Ein Re-Theming ist daher ein Austausch DIESER Datei —
+   kein Eingriff in den Spielcode.
+
+   Referenz: SNAKEone / "SNAKE 3D" Titelbild (CRT-Neon-Arcade).
+   ========================================================================== */
+
+:root {
+  /* ---- Grundflaechen ---------------------------------------------------- */
+  --c-bg:              #070b07;  /* Fast-Schwarz mit Gruenstich */
+  --c-bg-deep:         #030503;  /* Vignetten-Rand */
+  --c-bg-panel:        rgba(7, 18, 9, 0.82);
+
+  /* ---- Primaer: Neon-Gruen --------------------------------------------- */
+  --c-green:           #4dff6a;
+  --c-green-core:      #c8ffd2;  /* Glow-Kern, fast weiss */
+  --c-green-dim:       rgba(77, 255, 106, 0.45);
+  --c-green-faint:     rgba(77, 255, 106, 0.16);
+  --c-green-grid:      rgba(77, 255, 106, 0.20);
+
+  /* ---- Sekundaer: Magenta ---------------------------------------------- */
+  --c-magenta:         #ff3ce0;
+  --c-magenta-core:    #ffd6f8;
+  --c-magenta-dim:     rgba(255, 60, 224, 0.45);
+  --c-magenta-deep:    #c92fb0;
+
+  /* ---- Akzente ---------------------------------------------------------- */
+  --c-blue-edge:       #6a8dff;  /* Kantenlicht auf den Rahmenbloecken */
+  --c-gold:            #ffe066;  /* Partikel / Treffer-Funken */
+  --c-gold-core:       #fffbe6;
+  --c-red:             #ff4d6a;  /* Leben verloren / Gefahr */
+  --c-cyan:            #4de8ff;  /* Power-Up: Slow */
+
+  /* ---- Stein-Stufen (Trefferanzahl) ------------------------------------ */
+  --c-brick-1:         #4dff6a;
+  --c-brick-2:         #ffe066;
+  --c-brick-3:         #ff3ce0;
+  --c-brick-steel:     #7d8f9a;
+
+  /* ---- Typografie ------------------------------------------------------- */
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono",
+               Menlo, Consolas, "DejaVu Sans Mono", monospace;
+
+  --fs-hero:           clamp(2.75rem, 15vw, 5.5rem);
+  --fs-sub:            clamp(1rem, 4.5vw, 1.6rem);
+  --fs-body:           clamp(0.8rem, 3.4vw, 1rem);
+  --fs-small:          clamp(0.64rem, 2.7vw, 0.8rem);
+  --fs-hud:            clamp(0.72rem, 3vw, 0.95rem);
+
+  --ls-hero:           0.18em;   /* SNAKE 3D nutzt sehr weite Sperrung */
+  --ls-sub:            0.42em;
+  --ls-body:           0.22em;
+  --ls-button:         0.16em;
+
+  --fw-normal:         400;
+  --fw-bold:           700;
+
+  /* ---- Glow / Bloom ----------------------------------------------------- */
+  --glow-hero:
+     0 0 0.12em var(--c-green-core),
+     0 0 0.4em  var(--c-green),
+     0 0 1.1em  var(--c-green),
+     0 0 2.4em  rgba(77, 255, 106, 0.55);
+  --glow-sub:
+     0 0 0.12em var(--c-magenta-core),
+     0 0 0.5em  var(--c-magenta),
+     0 0 1.4em  rgba(255, 60, 224, 0.6);
+  --glow-text:
+     0 0 0.35em rgba(77, 255, 106, 0.85),
+     0 0 1em    rgba(77, 255, 106, 0.35);
+  --glow-button:
+     0 0 0.6em rgba(77, 255, 106, 0.30),
+     inset 0 0 0.9em rgba(77, 255, 106, 0.10);
+  --glow-button-active:
+     0 0 1.2em rgba(77, 255, 106, 0.55),
+     inset 0 0 1.2em rgba(77, 255, 106, 0.22);
+
+  /* Canvas-Bloom (Pixel, wird von js/theme.js gelesen) */
+  --blur-bloom:        14;
+  --blur-bloom-soft:   26;
+
+  /* ---- Rahmen / Geometrie ---------------------------------------------- */
+  --bw-button:         2px;
+  --radius:            0px;      /* SNAKE 3D: durchgaengig scharfe Ecken */
+  --gap:               clamp(0.5rem, 2.4vw, 0.9rem);
+  --pad-screen:        clamp(1rem, 5vw, 2rem);
+
+  /* ---- CRT-Overlay ------------------------------------------------------ */
+  --crt-scanline-alpha:   0.26;
+  --crt-scanline-size:    3px;
+  --crt-vignette-alpha:   0.85;
+  --crt-flicker:          0.03;
+
+  /* ---- Spielfeld-Projektion (js/projection.js) -------------------------- */
+  /* Perspektivische Kippung des Spielfelds. 0 = flach/2D.
+     SNAKE 3D kippt stark; fuer Breakout ist eine moderate Kippung
+     spielbarer, daher konservativer Default. */
+  --proj-tilt:         0.30;   /* 0..0.6 — wie stark die Ferne verjuengt */
+  --proj-rotate:       -0.055; /* Radiant — leichte Drehung in der Ebene */
+  --proj-horizon:      0.06;   /* Anteil der Hoehe, der nach oben weicht */
+}
+
+/* Reduzierte Bewegung: Bloom und Flackern zuruecknehmen, Lesbarkeit erhalten */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --crt-flicker: 0;
+    --crt-scanline-alpha: 0.12;
+    --blur-bloom: 6;
+    --blur-bloom-soft: 10;
+  }
+}

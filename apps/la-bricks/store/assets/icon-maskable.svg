@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="LA-Bricks">
+  <title>LA-Bricks</title>
+
+  <!--
+    Maskable-Fassung: randfuellender Hintergrund, kein eigener Eckradius.
+    Android beschneidet das Symbol je nach Geraet zu Kreis, Kleeblatt oder
+    abgerundetem Quadrat. Alle Bildelemente liegen daher in der Sicherheits-
+    zone — dem Kreis mit 40% Radius um die Mitte, hier als Gruppe auf 72%
+    skaliert.
+  -->
+
+  <defs>
+    <filter id="bloom" x="-200%" y="-200%" width="500%" height="500%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="7" result="b1"/>
+      <feGaussianBlur stdDeviation="17" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <radialGradient id="vignette" cx="50%" cy="48%" r="75%">
+      <stop offset="0%"   stop-color="#0d160e"/>
+      <stop offset="62%"  stop-color="#070b07"/>
+      <stop offset="100%" stop-color="#020402"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#vignette)"/>
+
+  <g stroke="#4dff6a" stroke-opacity="0.11" stroke-width="2">
+    <path d="M0 128H512M0 192H512M0 256H512M0 320H512M0 384H512"/>
+    <path d="M128 0V512M192 0V512M256 0V512M320 0V512M384 0V512"/>
+  </g>
+
+  <!-- Sicherheitszone: um die Mitte auf 72% verkleinert -->
+  <g transform="translate(256 256) scale(0.72) translate(-256 -256)">
+    <g filter="url(#bloom)" fill-opacity="0.18" stroke-width="6">
+      <g fill="#ff3ce0" stroke="#ff3ce0">
+        <rect x="64"  y="118" width="108" height="48" rx="2"/>
+        <rect x="186" y="118" width="108" height="48" rx="2"/>
+        <rect x="308" y="118" width="108" height="48" rx="2"/>
+      </g>
+      <g fill="#ffe066" stroke="#ffe066">
+        <rect x="64"  y="182" width="108" height="48" rx="2"/>
+        <rect x="186" y="182" width="108" height="48" rx="2"/>
+        <rect x="308" y="182" width="108" height="48" rx="2"/>
+      </g>
+      <g fill="#4dff6a" stroke="#4dff6a">
+        <rect x="64"  y="246" width="108" height="48" rx="2"/>
+        <rect x="308" y="246" width="108" height="48" rx="2"/>
+      </g>
+    </g>
+
+    <g filter="url(#bloom)">
+      <circle cx="240" cy="358" r="28" fill="#4dff6a"/>
+      <circle cx="240" cy="358" r="13" fill="#c8ffd2"/>
+    </g>
+
+    <g filter="url(#bloom)">
+      <rect x="140" y="424" width="232" height="32" rx="2"
+            fill="#4dff6a" fill-opacity="0.32" stroke="#4dff6a" stroke-width="7"/>
+      <path d="M140 424H372" stroke="#c8ffd2" stroke-width="5" stroke-opacity="0.75"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,53 @@
+{
+  "id": "/apps/la-bricks/",
+  "name": "LA-Bricks",
+  "short_name": "LA-Bricks",
+  "description": "Neon-Arcade-Breakout. Steinwand einreissen, Power-Ups fangen, Rekord jagen. Offline spielbar, ohne Werbung und ohne Konto.",
+  "lang": "de",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait-primary",
+  "background_color": "#070b07",
+  "theme_color": "#070b07",
+  "categories": ["games", "entertainment"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "store/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "store/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "store/assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "store/assets/screenshot-title.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Titelbildschirm mit Moduswahl"
+    },
+    {
+      "src": "store/assets/screenshot-play.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Laufende Partie"
+    }
+  ]
+}

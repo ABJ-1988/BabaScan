@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="LA-Bricks">
+  <title>LA-Bricks</title>
+
+  <defs>
+    <!-- Neon-Bloom, wie der text-shadow-Stapel in css/theme.css -->
+    <filter id="bloom" x="-200%" y="-200%" width="500%" height="500%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="7" result="b1"/>
+      <feGaussianBlur stdDeviation="17" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="bloom-soft" x="-200%" y="-200%" width="500%" height="500%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4" result="b1"/>
+      <feGaussianBlur stdDeviation="11" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <radialGradient id="vignette" cx="50%" cy="46%" r="72%">
+      <stop offset="0%"   stop-color="#0d160e"/>
+      <stop offset="65%"  stop-color="#070b07"/>
+      <stop offset="100%" stop-color="#020402"/>
+    </radialGradient>
+
+    <clipPath id="plate">
+      <rect x="0" y="0" width="512" height="512" rx="104" ry="104"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#plate)">
+    <rect width="512" height="512" fill="url(#vignette)"/>
+
+    <!-- Hintergrundraster -->
+    <g stroke="#4dff6a" stroke-opacity="0.13" stroke-width="2">
+      <path d="M0 96H512M0 176H512M0 256H512M0 336H512M0 416H512"/>
+      <path d="M96 0V512M176 0V512M256 0V512M336 0V512M416 0V512"/>
+    </g>
+
+    <!-- Steinwand: drei Reihen, von oben nach unten weicher werdend -->
+    <g filter="url(#bloom-soft)" fill-opacity="0.18" stroke-width="5">
+      <!-- Reihe 1 — Magenta (zaehste Stufe) -->
+      <g fill="#ff3ce0" stroke="#ff3ce0">
+        <rect x="64"  y="118" width="108" height="46" rx="2"/>
+        <rect x="186" y="118" width="108" height="46" rx="2"/>
+        <rect x="308" y="118" width="108" height="46" rx="2"/>
+      </g>
+      <!-- Reihe 2 — Gold -->
+      <g fill="#ffe066" stroke="#ffe066">
+        <rect x="64"  y="180" width="108" height="46" rx="2"/>
+        <rect x="186" y="180" width="108" height="46" rx="2"/>
+        <rect x="308" y="180" width="108" height="46" rx="2"/>
+      </g>
+      <!-- Reihe 3 — Gruen, mit Luecke: der Ball ist durchgebrochen -->
+      <g fill="#4dff6a" stroke="#4dff6a">
+        <rect x="64"  y="242" width="108" height="46" rx="2"/>
+        <rect x="308" y="242" width="108" height="46" rx="2"/>
+      </g>
+    </g>
+
+    <!-- Ball -->
+    <g filter="url(#bloom)">
+      <circle cx="240" cy="352" r="26" fill="#4dff6a"/>
+      <circle cx="240" cy="352" r="12" fill="#c8ffd2"/>
+    </g>
+
+    <!-- Paddle -->
+    <g filter="url(#bloom)">
+      <rect x="146" y="418" width="220" height="30" rx="2"
+            fill="#4dff6a" fill-opacity="0.32" stroke="#4dff6a" stroke-width="6"/>
+      <path d="M146 418H366" stroke="#c8ffd2" stroke-width="4" stroke-opacity="0.75"/>
+    </g>
+
+    <!-- Scanlines -->
+    <g stroke="#000" stroke-opacity="0.30" stroke-width="2">
+      <path d="M0 8H512M0 24H512M0 40H512M0 56H512M0 72H512M0 88H512M0 104H512
+               M0 120H512M0 136H512M0 152H512M0 168H512M0 184H512M0 200H512
+               M0 216H512M0 232H512M0 248H512M0 264H512M0 280H512M0 296H512
+               M0 312H512M0 328H512M0 344H512M0 360H512M0 376H512M0 392H512
+               M0 408H512M0 424H512M0 440H512M0 456H512M0 472H512M0 488H512M0 504H512"/>
+    </g>
+  </g>
+</svg>

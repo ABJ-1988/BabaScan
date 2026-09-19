@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>LA-Bricks</title>
+<meta name="description" content="LA-Bricks — Neon-Arcade-Breakout. Steinwand einreissen, Power-Ups fangen, Rekord jagen. Offline spielbar, keine Werbung, keine Konten.">
+<meta name="theme-color" content="#070b07">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LA-Bricks">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="store/assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="store/assets/icon-192.png">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+
+<div id="stage">
+  <div id="frame">
+
+    <canvas id="board" aria-label="Spielfeld"></canvas>
+
+    <!-- Punktestand -------------------------------------------------------->
+    <div id="hud" hidden>
+      <span class="slot"><span class="lbl">PKT</span><span class="num" id="hud-score">0</span></span>
+      <span class="slot"><span class="lbl">LVL</span><span class="num" id="hud-level">1</span></span>
+      <span class="slot" id="hud-lives"><span class="lbl">LEBEN</span><span class="num" id="hud-lives-n">3</span></span>
+      <button class="btn" id="btn-pause" type="button" aria-label="Pause">| |</button>
+    </div>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <!-- Titel -------------------------------------------------------------->
+    <section class="screen" id="screen-title" data-tap="start">
+      <h1 class="hero">BRICKS</h1>
+      <p class="hero-sub"><span class="dash">&ndash;</span> LA <span class="dash">&ndash;</span></p>
+
+      <p class="prompt prompt--pulse">TIPPEN ZUM STARTEN</p>
+      <p class="hint">WISCHEN = PADDLE &middot; TIPPEN = ABSCHUSS</p>
+
+      <div class="btn-grid">
+        <button class="btn" type="button" data-opt="modus">
+          <span class="k">MODUS:</span><span class="v"></span>
+        </button>
+        <button class="btn" type="button" data-opt="sound">
+          <span class="k">SOUND:</span><span class="v"></span>
+        </button>
+        <button class="btn" type="button" data-opt="klang">
+          <span class="k">KLANG:</span><span class="v"></span>
+        </button>
+        <button class="btn" type="button" data-opt="vibration">
+          <span class="k">VIBRATION:</span><span class="v"></span>
+        </button>
+      </div>
+
+      <p class="stat-line" id="title-record">
+        <span class="lbl">REKORD</span> <span class="val" id="record-n">0</span>
+      </p>
+    </section>
+
+    <!-- Pause -------------------------------------------------------------->
+    <section class="screen" id="screen-pause" hidden>
+      <h2 class="hero" style="font-size:var(--fs-sub)">PAUSE</h2>
+      <p class="stat-line"><span class="lbl">PUNKTE</span> <span class="val" id="pause-score">0</span></p>
+      <div class="btn-grid">
+        <button class="btn btn--wide" type="button" id="btn-resume">WEITER</button>
+        <button class="btn btn--wide btn--magenta" type="button" id="btn-quit">ABBRECHEN</button>
+      </div>
+    </section>
+
+    <!-- Level geschafft ---------------------------------------------------->
+    <section class="screen" id="screen-level" hidden data-tap="next">
+      <h2 class="hero" style="font-size:var(--fs-sub)">LEVEL GESCHAFFT</h2>
+      <p class="hero-sub"><span class="dash">&ndash;</span> <span id="level-n">1</span> <span class="dash">&ndash;</span></p>
+      <p class="stat-line"><span class="lbl">BONUS</span> <span class="val" id="level-bonus">0</span></p>
+      <p class="stat-line"><span class="lbl">PUNKTE</span> <span class="val" id="level-score">0</span></p>
+      <p class="prompt prompt--pulse">TIPPEN FUER WEITER</p>
+    </section>
+
+    <!-- Spielende ---------------------------------------------------------->
+    <section class="screen" id="screen-over" hidden data-tap="restart">
+      <h2 class="hero" style="font-size:var(--fs-sub)">SPIEL VORBEI</h2>
+      <p class="hero-sub" id="over-record" hidden>
+        <span class="dash">&ndash;</span> NEUER REKORD <span class="dash">&ndash;</span>
+      </p>
+      <p class="stat-line"><span class="lbl">PUNKTE</span> <span class="val" id="over-score">0</span></p>
+      <p class="stat-line stat-line--alt"><span class="lbl">REKORD</span> <span class="val" id="over-high">0</span></p>
+      <p class="stat-line"><span class="lbl">LEVEL</span> <span class="val" id="over-level">1</span></p>
+      <div class="btn-grid">
+        <button class="btn btn--wide" type="button" id="btn-again">NOCHMAL</button>
+        <button class="btn btn--wide btn--magenta" type="button" id="btn-title">TITEL</button>
+      </div>
+    </section>
+
+    <!-- CRT-Overlay -------------------------------------------------------->
+    <div class="crt" aria-hidden="true"></div>
+    <div class="crt-flicker" aria-hidden="true"></div>
+
+    <!-- Querformat --------------------------------------------------------->
+    <div id="rotate-hint" aria-hidden="true">
+      <p class="hero" style="font-size:var(--fs-sub)">BITTE DREHEN</p>
+      <p class="hint">LA-BRICKS WIRD IM HOCHFORMAT GESPIELT</p>
+    </div>
+
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

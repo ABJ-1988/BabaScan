@@ -1,0 +1,373 @@
+/* ==========================================================================
+   LA-BRICKS — LAYOUT & KOMPONENTEN
+   Liest ausschliesslich Tokens aus theme.css. Keine literalen Farben.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--c-bg-deep);
+  color: var(--c-green);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   Buehne — haelt Canvas und Overlays deckungsgleich
+   -------------------------------------------------------------------------- */
+#stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 45%,
+      var(--c-bg) 0%,
+      var(--c-bg-deep) 100%);
+}
+
+#frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: min(100vw, calc(100vh * 9 / 16));
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+#board {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: auto;
+}
+
+/* --------------------------------------------------------------------------
+   CRT-Overlay — Scanlines, Vignette, leichtes Flackern
+   -------------------------------------------------------------------------- */
+.crt {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.crt::before {
+  /* Scanlines */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, var(--crt-scanline-alpha)) 0px,
+    rgba(0, 0, 0, var(--crt-scanline-alpha)) 1px,
+    transparent 1px,
+    transparent var(--crt-scanline-size)
+  );
+  mix-blend-mode: multiply;
+}
+
+.crt::after {
+  /* Vignette */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 100% 75% at 50% 50%,
+    transparent 40%,
+    rgba(0, 0, 0, var(--crt-vignette-alpha)) 100%
+  );
+}
+
+@keyframes crt-flicker {
+  0%, 100% { opacity: 0; }
+  50%      { opacity: var(--crt-flicker); }
+}
+
+.crt-flicker {
+  position: absolute;
+  inset: 0;
+  background: var(--c-green);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: crt-flicker 140ms steps(2, end) infinite;
+  pointer-events: none;
+  z-index: 41;
+}
+
+/* --------------------------------------------------------------------------
+   Screens (Titel, Pause, Game Over, Level geschafft)
+   -------------------------------------------------------------------------- */
+.screen {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap);
+  padding: var(--pad-screen);
+  text-align: center;
+  background: linear-gradient(
+    to bottom,
+    rgba(3, 5, 3, 0.55) 0%,
+    rgba(3, 5, 3, 0.20) 35%,
+    rgba(3, 5, 3, 0.55) 100%
+  );
+}
+
+.screen[hidden] { display: none; }
+
+/* --------------------------------------------------------------------------
+   Titel — grosses gruenes Hauptwort + magenta Qualifier
+   (SNAKE 3D: "SNAKE" gruen, "— 3D —" magenta)
+   -------------------------------------------------------------------------- */
+.hero {
+  margin: 0;
+  font-size: var(--fs-hero);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-hero);
+  line-height: 0.95;
+  color: var(--c-green-core);
+  text-shadow: var(--glow-hero);
+  /* Sperrung schiebt optisch nach rechts — kompensieren */
+  text-indent: var(--ls-hero);
+}
+
+.hero-sub {
+  margin: 0;
+  font-size: var(--fs-sub);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-sub);
+  color: var(--c-magenta-core);
+  text-shadow: var(--glow-sub);
+  text-indent: var(--ls-sub);
+}
+
+.hero-sub .dash {
+  color: var(--c-magenta);
+  opacity: 0.9;
+}
+
+/* --------------------------------------------------------------------------
+   Text
+   -------------------------------------------------------------------------- */
+.prompt {
+  margin: 0;
+  font-size: var(--fs-body);
+  letter-spacing: var(--ls-body);
+  color: var(--c-green-dim);
+  text-shadow: var(--glow-text);
+  text-indent: var(--ls-body);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+
+.prompt--pulse { animation: pulse 1.6s ease-in-out infinite; }
+
+.hint {
+  margin: 0;
+  max-width: 34ch;
+  font-size: var(--fs-small);
+  letter-spacing: var(--ls-body);
+  line-height: 1.7;
+  color: var(--c-green-faint);
+  text-indent: var(--ls-body);
+}
+
+.stat-line {
+  margin: 0;
+  font-size: var(--fs-body);
+  letter-spacing: var(--ls-body);
+  color: var(--c-green);
+  text-shadow: var(--glow-text);
+}
+
+.stat-line .val { color: var(--c-green-core); }
+.stat-line--alt { color: var(--c-magenta); text-shadow: var(--glow-sub); }
+
+/* --------------------------------------------------------------------------
+   Buttons — Outline, keine Fuellung, Label als "KEY: WERT"
+   -------------------------------------------------------------------------- */
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap);
+  width: 100%;
+  max-width: 30rem;
+  margin-top: calc(var(--gap) * 1.5);
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;               /* trennt "MODUS:" von "KLASSIK" */
+  min-height: 3rem;
+  padding: 0.7em 0.6em;
+  font-family: inherit;
+  font-size: var(--fs-small);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-button);
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--c-green);
+  background: transparent;
+  border: var(--bw-button) solid var(--c-green);
+  border-radius: var(--radius);
+  box-shadow: var(--glow-button);
+  text-shadow: var(--glow-text);
+  cursor: pointer;
+  transition: color 90ms linear, box-shadow 90ms linear,
+              border-color 90ms linear, background-color 90ms linear;
+}
+
+.btn:hover,
+.btn:focus-visible {
+  color: var(--c-green-core);
+  box-shadow: var(--glow-button-active);
+  outline: none;
+}
+
+.btn:active {
+  background: var(--c-green-faint);
+  box-shadow: var(--glow-button-active);
+}
+
+.btn--wide { grid-column: 1 / -1; }
+
+.btn--magenta {
+  color: var(--c-magenta);
+  border-color: var(--c-magenta);
+  text-shadow: var(--glow-sub);
+  box-shadow:
+     0 0 0.6em rgba(255, 60, 224, 0.30),
+     inset 0 0 0.9em rgba(255, 60, 224, 0.10);
+}
+
+.btn--magenta:hover,
+.btn--magenta:focus-visible {
+  color: var(--c-magenta-core);
+  box-shadow:
+     0 0 1.2em rgba(255, 60, 224, 0.55),
+     inset 0 0 1.2em rgba(255, 60, 224, 0.22);
+}
+
+.btn .k { opacity: 0.6; }
+.btn .v { color: var(--c-green-core); }
+.btn--magenta .v { color: var(--c-magenta-core); }
+
+/* --------------------------------------------------------------------------
+   HUD — Punkte / Level / Leben
+   -------------------------------------------------------------------------- */
+#hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap);
+  padding: clamp(0.5rem, 2.5vw, 1rem) clamp(0.7rem, 3.5vw, 1.3rem);
+  font-size: var(--fs-hud);
+  letter-spacing: var(--ls-button);
+  color: var(--c-green-dim);
+  text-shadow: var(--glow-text);
+  pointer-events: none;
+}
+
+#hud[hidden] { display: none; }
+
+#hud .slot { display: flex; gap: 0.5em; align-items: baseline; }
+#hud .lbl { opacity: 0.55; }
+#hud .num { color: var(--c-green-core); font-weight: var(--fw-bold); }
+
+#hud-lives { color: var(--c-magenta); text-shadow: var(--glow-sub); }
+
+/* Pause-Knopf — einziges interaktive Element im HUD */
+#btn-pause {
+  pointer-events: auto;
+  min-height: 2rem;
+  padding: 0.35em 0.8em;
+  font-size: var(--fs-small);
+}
+
+/* --------------------------------------------------------------------------
+   Toast — kurze Power-Up-Meldung ueber dem Spielfeld
+   -------------------------------------------------------------------------- */
+#toast {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  z-index: 25;
+  transform: translateX(-50%);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-body);
+  color: var(--c-gold);
+  text-shadow:
+     0 0 0.3em var(--c-gold-core),
+     0 0 1em   var(--c-gold);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+@keyframes toast-rise {
+  0%   { opacity: 0; transform: translate(-50%, 0.6em); }
+  18%  { opacity: 1; transform: translate(-50%, 0); }
+  75%  { opacity: 1; transform: translate(-50%, -0.4em); }
+  100% { opacity: 0; transform: translate(-50%, -1.2em); }
+}
+
+#toast.show { animation: toast-rise 1250ms ease-out forwards; }
+
+/* --------------------------------------------------------------------------
+   Querformat-Hinweis — das Spiel ist Portrait-only (wie SNAKEone)
+   -------------------------------------------------------------------------- */
+#rotate-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap);
+  padding: var(--pad-screen);
+  text-align: center;
+  background: var(--c-bg-deep);
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  #rotate-hint { display: flex; }
+}
+
+/* --------------------------------------------------------------------------
+   Sichtbar nur fuer Screenreader
+   -------------------------------------------------------------------------- */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
